@@ -1,0 +1,20 @@
+{
+  "sources": [
+    "C:\\Users\\you\\Pictures\\memes",
+    "/home/you/Pictures/memes"
+  ],
+  "categories": [
+    { "name": "Funny - LOL",        "key": "1", "emoji": "😂" },
+    { "name": "Angry - Rage",       "key": "2", "emoji": "😡" },
+    { "name": "Sad - Disappointed", "key": "3", "emoji": "😢" },
+    { "name": "Approval - Yes",     "key": "4", "emoji": "👍" },
+    { "name": "Celebration - Win",  "key": "5", "emoji": "🎉" },
+    { "name": "Shocked - WTF",      "key": "6", "emoji": "😱" },
+    { "name": "Awkward - Cringe",   "key": "7", "emoji": "😬" },
+    { "name": "Sarcasm - Irony",    "key": "8", "emoji": "🙃" },
+    { "name": "Cute - Wholesome",   "key": "9", "emoji": "🥰" }
+  ],
+  "port": 8765,
+  "host": "127.0.0.1",
+  "language": "auto"
+}
