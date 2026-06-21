@@ -192,11 +192,24 @@ def make_handler(config: Config):
     undo_stack = []          # list of (current_path, origin_path)
     lock = threading.Lock()
 
+    # Host-header allowlist defeats DNS-rebinding when bound to loopback.
+    port = config.data.get("port", DEFAULT_PORT)
+    cfg_host = config.data.get("host", DEFAULT_HOST)
+    enforce_host = cfg_host in ("127.0.0.1", "localhost", "::1")
+    allowed_hosts = {
+        "127.0.0.1:%d" % port, "localhost:%d" % port, "[::1]:%d" % port,
+    }
+
     class Handler(BaseHTTPRequestHandler):
         server_version = "MemeSorter/1.0"
 
         def log_message(self, *a):
             pass  # silence
+
+        def _host_ok(self):
+            if not enforce_host:
+                return True
+            return (self.headers.get("Host") or "") in allowed_hosts
 
         # ---- response helpers ----
         def _json(self, obj, code=200):
@@ -220,6 +233,9 @@ def make_handler(config: Config):
 
         # ---- routing ----
         def do_GET(self):
+            if not self._host_ok():
+                self.send_error(403)
+                return
             parsed = urllib.parse.urlparse(self.path)
             route = parsed.path
             qs = urllib.parse.parse_qs(parsed.query)
@@ -238,6 +254,15 @@ def make_handler(config: Config):
                 self.send_error(404)
 
         def do_POST(self):
+            if not self._host_ok():
+                self.send_error(403)
+                return
+            # Require a real JSON content-type; a cross-site form can only send
+            # text/plain etc. without triggering a CORS preflight, so this blocks CSRF.
+            ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+            if ctype != "application/json":
+                self.send_error(415)
+                return
             parsed = urllib.parse.urlparse(self.path)
             route = parsed.path
             length = int(self.headers.get("Content-Length", 0))
@@ -348,10 +373,13 @@ def make_handler(config: Config):
                 return
             src = config.sources[sid]
             path = os.path.join(src, os.path.basename(fname))
+            ext = os.path.splitext(path)[1].lower()
+            if ext not in MEDIA_EXT:
+                self.send_error(404)
+                return
             if not os.path.isfile(path):
                 self.send_error(404)
                 return
-            ext = os.path.splitext(path)[1].lower()
             ctype = MIME.get(ext, "application/octet-stream")
             size = os.path.getsize(path)
 
@@ -727,7 +755,7 @@ async function skip(){
 }
 
 async function undo(){
-  const d=await (await fetch('/api/undo',{method:'POST'})).json();
+  const d=await (await fetch('/api/undo',{method:'POST',headers:{'Content-Type':'application/json'}})).json();
   if(d.ok) showFlash(t('undone'));
   loadNext();
 }
